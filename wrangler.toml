@@ -4,3 +4,27 @@ compatibility_date = "2025-02-09"
 
 [build]
 command = "cargo install -q worker-build && worker-build --release"
+
+[triggers]
+crons = ["0 0 * * *"]
+
+[env.prod]
+
+  [env.prod.vars]
+  ENV = "prod"
+  DB_ID = "ffd316de-0455-429b-90c7-45f935183333"
+
+  [[env.prod.r2_buckets]]
+  binding = "R2"
+  bucket_name = "acearchive-lgbt-db-backups"
+
+[env.dev]
+
+  [env.dev.vars]
+  ENV = "dev"
+  DB_ID = "689894b6-d786-4247-bd64-b3071fd2d609"
+
+  [[env.dev.r2_buckets]]
+  binding = "R2"
+  bucket_name = "acearchive-lgbt-db-backups-dev"
+
