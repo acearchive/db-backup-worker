@@ -117,8 +117,8 @@ impl DbExportResponse {
 
 #[derive(Debug)]
 pub struct DbExport {
-    bookmark: DbExportBookmark,
-    signed_url: Option<String>,
+    pub bookmark: DbExportBookmark,
+    pub signed_url: Option<String>,
 }
 
 impl ApiClient {
