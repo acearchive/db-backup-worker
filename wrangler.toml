@@ -27,4 +27,3 @@ crons = ["0 0 * * *"]
   [[env.dev.r2_buckets]]
   binding = "R2"
   bucket_name = "acearchive-lgbt-db-backups-dev"
-
