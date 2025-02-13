@@ -1,4 +1,4 @@
-name = "db-backup-worker"
+name = "acearchive-db-backup"
 main = "build/worker/shim.mjs"
 compatibility_date = "2025-02-09"
 
