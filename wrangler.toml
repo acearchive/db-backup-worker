@@ -23,7 +23,7 @@ crons = ["0 0 * * *"]
 
   [env.dev.vars]
   ENV = "dev"
-  DB_ID = "689894b6-d786-4247-bd64-b3071fd2d609"
+  DB_ID = "12b24516-946d-4ebd-abbb-8db821159924"
 
   [[env.dev.r2_buckets]]
   binding = "R2"
