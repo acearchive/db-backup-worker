@@ -28,7 +28,7 @@ impl ApiClient {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct DbExportBookmark(String);
 
@@ -72,19 +72,35 @@ enum DbExportStatus {
     #[serde(rename = "complete")]
     Complete,
 
+    #[serde(rename = "active")]
+    Active,
+
     #[serde(rename = "error")]
     Error,
 }
 
 #[derive(Debug, Serialize)]
+struct DbExportDumpOptions {
+    no_schema: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
 struct DbExportBody {
     output_format: String,
+    current_bookmark: Option<DbExportBookmark>,
+    dump_options: Option<DbExportDumpOptions>,
 }
 
 impl Default for DbExportBody {
     fn default() -> Self {
         Self {
             output_format: "polling".to_string(),
+            current_bookmark: None,
+            dump_options: Some(DbExportDumpOptions {
+                // We don't want the schema in the export, because in a recovery scenario, we would
+                // apply the database migrations first, and then import the data.
+                no_schema: Some(true),
+            }),
         }
     }
 }
@@ -106,15 +122,21 @@ struct DbExportResponse {
 impl DbExportResponse {
     fn unwrap_result(self) -> anyhow::Result<Option<DbExportResponseResult>> {
         if !self.success {
-            anyhow::bail!("Request failed with error: {:?}", self.error);
+            anyhow::bail!(
+                "Request failed with error: {}",
+                self.error.unwrap_or_else(|| "Unknown error".to_string())
+            );
         }
 
         match self.status {
             Some(DbExportStatus::Complete) => Ok(self.result),
             Some(DbExportStatus::Error) => {
-                anyhow::bail!("Request failed with error: {:?}", self.error)
+                anyhow::bail!(
+                    "Request failed with error: {}",
+                    self.error.unwrap_or_else(|| "Unknown error".to_string())
+                );
             }
-            None => Ok(None),
+            Some(DbExportStatus::Active) | None => Ok(None),
         }
     }
 }
@@ -126,29 +148,26 @@ pub struct DbExport {
 }
 
 impl ApiClient {
-    // TODO: This method only *starts*, the DB export. Per the Cloudflare API docs, it needs to be
-    // polled periodically to complete the DB export, otherwise it will automatically cancel. From
-    // the docs:
-    //
-    //   Note: this process may take some time for larger DBs, during which your D1 will be
-    //   unavailable to serve queries. To avoid blocking your DB unnecessarily, an in-progress
-    //   export must be continually polled or will automatically cancel.
-    //
-    // In practice, the Ace Archive DB seems to be small enough to always export successfully on
-    // the first call to this endpoint. We *should* implement the polling behavior anyways to
-    // ensure that it always succeeds going forward, however I'm not able to test this behavior of
-    // the Cloudflare API without a large enough DB, and the semantics of this API endpoint aren't
-    // clear enough to me just from reading the docs to implement this without being able to play
-    // around with the API endpoint.
-    pub async fn start_db_export(&self, db_id: &str) -> anyhow::Result<DbExport> {
+    // Per the Cloudflare API docs, this endpoint needs to be polled periodically to complete the
+    // DB export.
+    pub async fn poll_db_export(
+        &self,
+        db_id: &str,
+        bookmark: Option<DbExportBookmark>,
+    ) -> anyhow::Result<DbExport> {
         let account_id = &self.account_id;
+
+        let req_body = DbExportBody {
+            current_bookmark: bookmark,
+            ..DbExportBody::default()
+        };
 
         let resp = self
             .client
             .post(format!(
                 "{API_ENDPOINT}/accounts/{account_id}/d1/database/{db_id}/export",
             ))
-            .body(serde_json::to_string(&DbExportBody::default())?)
+            .body(serde_json::to_string(&req_body)?)
             .header("Authorization", format!("Bearer {}", self.api_token))
             .header("Content-Type", "application/json")
             .send()
@@ -159,7 +178,7 @@ impl ApiClient {
         let resp_body = wrapped_resp_body.unwrap_result()?;
         let maybe_result = resp_body.clone().unwrap_result()?;
 
-        console_log!("Started DB export for DB ID: {db_id}");
+        console_log!("Polled DB export for DB ID: {db_id}");
 
         if let Some(bookmark) = &resp_body.at_bookmark {
             console_log!("Got DB bookmark: {bookmark}");

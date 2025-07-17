@@ -2,7 +2,7 @@
 
 mod api;
 
-use api::{ApiClient, DbExport};
+use api::{ApiClient, DbExport, DbExportBookmark};
 use chrono::{DateTime, SecondsFormat};
 use worker::{self, console_error, console_log, event, Date, Env, ScheduleContext, ScheduledEvent};
 
@@ -20,7 +20,7 @@ fn db_backup_key() -> String {
         .expect("DateTime milliseconds since epoch is out of range.")
         .to_rfc3339_opts(SecondsFormat::Secs, true);
 
-    format!("db-backup-{timestamp}.sql")
+    format!("db-backup-{timestamp}-no-schema.sql")
 }
 
 async fn run(env: Env) -> anyhow::Result<()> {
@@ -40,9 +40,26 @@ async fn run(env: Env) -> anyhow::Result<()> {
 
     let client = ApiClient::new(api_token.to_string(), account_id.to_string());
 
-    let DbExport { signed_url, .. } = client.start_db_export(&db_id.to_string()).await?;
+    console_log!("Starting DB export...");
 
-    let signed_url = signed_url.ok_or_else(|| anyhow::anyhow!("Was not able to get DB export on first call to API endpoint. See TODO in the codebase."))?;
+    let mut export_bookmark: Option<DbExportBookmark> = None;
+
+    let signed_url = loop {
+        let DbExport {
+            signed_url,
+            bookmark,
+        } = client
+            .poll_db_export(&db_id.to_string(), export_bookmark.clone())
+            .await?;
+
+        export_bookmark = Some(bookmark);
+
+        if let Some(url) = signed_url {
+            break url;
+        } else {
+            console_log!("Continuing to poll for DB export...");
+        }
+    };
 
     let db_export_resp = reqwest::get(signed_url).await?.error_for_status()?;
     let db_export_bytes = db_export_resp.bytes().await?;
