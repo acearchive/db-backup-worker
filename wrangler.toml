@@ -8,24 +8,27 @@ command = "cargo install -q worker-build && worker-build --release"
 [triggers]
 crons = ["0 0 * * *"]
 
+[observability]
+enabled = true
+
 [env.prod]
 
-  [env.prod.vars]
-  ENV = "prod"
-  DB_ID = "ffd316de-0455-429b-90c7-45f935183333"
+[env.prod.vars]
+ENV = "prod"
+DB_ID = "ffd316de-0455-429b-90c7-45f935183333"
 
-  [[env.prod.r2_buckets]]
-  binding = "R2"
-  bucket_name = "acearchive-lgbt-db-backups"
-  preview_bucket_name = "acearchive-lgbt-db-backups-dev"
+[[env.prod.r2_buckets]]
+binding = "R2"
+bucket_name = "acearchive-lgbt-db-backups"
+preview_bucket_name = "acearchive-lgbt-db-backups-dev"
 
 [env.dev]
 
-  [env.dev.vars]
-  ENV = "dev"
-  DB_ID = "12b24516-946d-4ebd-abbb-8db821159924"
+[env.dev.vars]
+ENV = "dev"
+DB_ID = "12b24516-946d-4ebd-abbb-8db821159924"
 
-  [[env.dev.r2_buckets]]
-  binding = "R2"
-  bucket_name = "acearchive-lgbt-db-backups-dev"
-  preview_bucket_name = "acearchive-lgbt-db-backups-dev"
+[[env.dev.r2_buckets]]
+binding = "R2"
+bucket_name = "acearchive-lgbt-db-backups-dev"
+preview_bucket_name = "acearchive-lgbt-db-backups-dev"
