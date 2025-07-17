@@ -20,7 +20,7 @@ fn db_backup_key() -> String {
         .expect("DateTime milliseconds since epoch is out of range.")
         .to_rfc3339_opts(SecondsFormat::Secs, true);
 
-    format!("db-backup-{timestamp}-no-schema.sql")
+    format!("db-backup-no-schema-{timestamp}.sql")
 }
 
 async fn run(env: Env) -> anyhow::Result<()> {
