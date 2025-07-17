@@ -80,15 +80,9 @@ enum DbExportStatus {
 }
 
 #[derive(Debug, Serialize)]
-struct DbExportDumpOptions {
-    no_schema: Option<bool>,
-}
-
-#[derive(Debug, Serialize)]
 struct DbExportBody {
     output_format: String,
     current_bookmark: Option<DbExportBookmark>,
-    dump_options: Option<DbExportDumpOptions>,
 }
 
 impl Default for DbExportBody {
@@ -96,11 +90,6 @@ impl Default for DbExportBody {
         Self {
             output_format: "polling".to_string(),
             current_bookmark: None,
-            dump_options: Some(DbExportDumpOptions {
-                // We don't want the schema in the export, because in a recovery scenario, we would
-                // apply the database migrations first, and then import the data.
-                no_schema: Some(true),
-            }),
         }
     }
 }
