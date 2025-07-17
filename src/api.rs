@@ -54,8 +54,12 @@ impl<T> Envelope<T> {
     fn unwrap_result(self) -> anyhow::Result<T> {
         if !self.success {
             return Err(anyhow::anyhow!(
-                "Request failed with errors: {:?}",
+                "Request failed with errors:\n{}",
                 self.errors
+                    .iter()
+                    .map(|e| e.message.clone())
+                    .collect::<Vec<_>>()
+                    .join("\n")
             ));
         }
 
