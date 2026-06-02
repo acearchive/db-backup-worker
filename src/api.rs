@@ -80,16 +80,19 @@ enum DbExportStatus {
 }
 
 #[derive(Debug, Serialize)]
-struct DbExportBody {
-    output_format: String,
-    current_bookmark: Option<DbExportBookmark>,
+#[serde(untagged)]
+enum DbExportBody {
+    Start { output_format: String },
+    Poll { current_bookmark: DbExportBookmark },
 }
 
-impl Default for DbExportBody {
-    fn default() -> Self {
-        Self {
-            output_format: "polling".to_string(),
-            current_bookmark: None,
+impl DbExportBody {
+    fn new(bookmark: Option<DbExportBookmark>) -> Self {
+        match bookmark {
+            Some(current_bookmark) => Self::Poll { current_bookmark },
+            None => Self::Start {
+                output_format: "polling".to_string(),
+            },
         }
     }
 }
@@ -146,10 +149,7 @@ impl ApiClient {
     ) -> anyhow::Result<DbExport> {
         let account_id = &self.account_id;
 
-        let req_body = DbExportBody {
-            current_bookmark: bookmark,
-            ..DbExportBody::default()
-        };
+        let req_body = DbExportBody::new(bookmark);
 
         let resp = self
             .client
